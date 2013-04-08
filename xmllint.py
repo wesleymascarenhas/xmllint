@@ -30,19 +30,20 @@ class backgroundLinter(sublime_plugin.EventListener):
 
         remove_marks(view)
 
-    def on_post_save(self, view):
-        if view.is_scratch():
-            return
+    # temporary disable post save actions
+    # def on_post_save(self, view):
+    #     if view.is_scratch():
+    #         return
 
-        remove_marks(view)
+    #     remove_marks(view)
 
-        ret = validate_xsd(view)
-        if ret == 0 or ret == 2:
-            return
+    #     ret = validate_xsd(view)
+    #     if ret == 0 or ret == 2:
+    #         return
 
-        ret = validate_dtd(view)
-        if ret == 0:
-            return
+    #     ret = validate_dtd(view)
+    #     if ret == 0:
+    #         return
 
 
 class formatCommand(sublime_plugin.TextCommand):
@@ -63,24 +64,29 @@ class validate_xsdCommand(sublime_plugin.TextCommand):
 
 class show_error_listCommand(sublime_plugin.WindowCommand):
     def run(self):
-        view = self.window.active_view()
+        error_list_show(self.window.active_view(), self.window, error_list_on_done)
+
+
+def error_list_show(view, window, on_done):
+    vid = view.id()
+    errors = []
+
+    if ERRORS and vid in ERRORS:
+        for error in ERRORS[vid]:
+            description = error[3]
+            lineno = error[2] + 1
+            errors.append([description, '%s, line: %s' % (error[0], lineno)])
+
+    window.show_quick_panel(errors, on_done)
+
+
+def error_list_on_done(index):
+    if index != -1:
+        view = sublime.active_window().active_view()
         vid = view.id()
-        errors = []
-
         if ERRORS and vid in ERRORS:
-            for error in ERRORS[vid]:
-                description = error[2]
-                lineno = error[1] + 1
-                errors.append([description, 'Line: %s' % (lineno)])
-        self.window.show_quick_panel(errors, self.on_done)
-
-    def on_done(self, index):
-        if index != -1:
-            view = self.window.active_view()
-            vid = view.id()
-            if ERRORS and vid in ERRORS:
-                line = ERRORS[vid][index][1] + 1
-                view.run_command("goto_line", {"line": line})
+            line = ERRORS[vid][index][2] + 1
+            view.run_command("goto_line", {"line": line})
 
 
 def format(view):
@@ -163,19 +169,24 @@ def is_xml_file(view):
 
 def parse_errors(view, output):
     vid = view.id()
+    vin = re.sub('[^\\\\/]*[\\\\/]', '', view.file_name())
 
     ERRORS[vid] = []
     marks = []
 
-    errors = re.findall(':(\d+):\s*(.+)', output.replace('\r', ''))
+    errors = re.findall('(?<=[\\\\/])([^\\\\/]+):(\d+):\s*(.+)', output.replace('\r', ''))
 
     for error in errors:
-        lineno = int(error[0]) - 1
+        lineno = int(error[1]) - 1
         line = view.line(view.text_point(lineno, 0))
-        ERRORS[vid].append((line, lineno, error[1]))
+        ERRORS[vid].append((error[0], line, lineno, error[2]))
+        if error[0] != vin:
+            print 'Wrong view for %s, skipping marks' % error[0]
+            continue
         marks.append(line)
 
     view.add_regions('xmllinterrors', marks, 'mark', 'dot', sublime.DRAW_OUTLINED)
+    error_list_show(view, view.window(), error_list_on_done)
 
 
 def find_schema(view):
