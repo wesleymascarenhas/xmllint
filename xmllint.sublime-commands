@@ -1,0 +1,15 @@
+[
+    {
+        "caption": "XML Lint: Format",
+        "command": "format"
+    }, {
+        "caption": "XML Lint: Validate DTD",
+        "command": "validate_dtd"
+    }, {
+        "caption": "XML Lint: Validate XSD",
+        "command": "validate_xsd"
+    }, {
+        "caption": "XML Lint: Show Error List",
+        "command": "show_error_list"
+    }
+]
