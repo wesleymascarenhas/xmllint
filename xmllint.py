@@ -136,15 +136,14 @@ def validate_xsd(view):
 
     schema = find_schema(view)
 
-    if schema:
-        stdout, stderr, returncode = cmd(COMMAND_BASE % (CONFIG.get('path').encode("ascii"), '--noout --schema "%s"' % schema, view.file_name()))
-        if returncode == 0:
-            message(view, 'No errors', 2500)
-            return 0
+    stdout, stderr, returncode = cmd(COMMAND_BASE % (CONFIG.get('path').encode("ascii"), '--noout --schema "%s"' % schema, view.file_name()))
 
-        message(view, RETURN_CODES[returncode], 2500)
-        parse_errors(view, stderr)
-        return 2
+    if returncode == 0:
+        message(view, 'No errors', 2500)
+        return 0
+
+    message(view, RETURN_CODES[returncode], 2500)
+    parse_errors(view, stderr)
 
     return 1
 
