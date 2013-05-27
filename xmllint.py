@@ -1,3 +1,4 @@
+import os
 import re
 import sublime
 import sublime_plugin
@@ -16,8 +17,9 @@ RETURN_CODES = {
     8: 'Error in Reader registration (generated when [--chkregister] option is used)',
     9: 'Out of memory error',
 }
-COMMAND_BASE = 'xmllint --encode utf-8 %s "%s"'
+COMMAND_BASE = '%s --encode utf-8 %s "%s"'
 ERRORS = {}
+CONFIG = sublime.load_settings("xmllint.sublime-settings")
 
 
 class backgroundLinter(sublime_plugin.EventListener):
@@ -93,7 +95,7 @@ def format(view):
     if not is_xml_file(view):
         return
 
-    stdout, stderr, returncode = cmd(COMMAND_BASE % ('--format', view.file_name()))
+    stdout, stderr, returncode = cmd(COMMAND_BASE % (CONFIG.get('path').encode("ascii"), '--format', view.file_name()))
 
     if returncode == 0:
         region = sublime.Region(0, view.size())
@@ -116,7 +118,7 @@ def validate_dtd(view):
     if not is_xml_file(view):
         return
 
-    stdout, stderr, returncode = cmd(COMMAND_BASE % ('--noout --valid', view.file_name()))
+    stdout, stderr, returncode = cmd(COMMAND_BASE % (CONFIG.get('path').encode("ascii"), '--noout --valid', view.file_name()))
 
     if returncode == 0:
         message(view, 'No errors', 2500)
@@ -135,7 +137,7 @@ def validate_xsd(view):
     schema = find_schema(view)
 
     if schema:
-        stdout, stderr, returncode = cmd(COMMAND_BASE % ('--noout --schema "%s"' % schema, view.file_name()))
+        stdout, stderr, returncode = cmd(COMMAND_BASE % (CONFIG.get('path').encode("ascii"), '--noout --schema "%s"' % schema, view.file_name()))
         if returncode == 0:
             message(view, 'No errors', 2500)
             return 0
@@ -148,7 +150,9 @@ def validate_xsd(view):
 
 
 def cmd(command):
-    proc = subprocess.Popen(command, bufsize=-1, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
+    nenv = os.environ
+    nenv['XMLLINT_INDENT'] = CONFIG.get('ident').encode("ascii")
+    proc = subprocess.Popen(command, bufsize=-1, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE, shell=True, env=nenv)
     data = proc.communicate()
     return (data[0], data[1], proc.returncode)
 
